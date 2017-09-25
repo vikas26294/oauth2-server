@@ -63,6 +63,50 @@ class PasswordGrant extends AbstractGrant
         $responseType->setAccessToken($accessToken);
         $responseType->setRefreshToken($refreshToken);
 
+        // save user access and refresh tokens to redis
+        if (PASSPORT_DRIVER == PASSPORT_MEMORY) {
+
+            // access token data to set
+            $accessTokenData    = array(
+                'access_token'  => $accessToken->getIdentifier(),
+                'client_id'     => $accessToken->getClient()->getIdentifier(),
+                'user_id'       => $accessToken->getUserIdentifier(),
+                'scopes'        => $accessToken->getScopes(),
+                'revoked'       => 0,
+                'expires_at'    => $accessToken->getExpiryDateTime(),
+            );
+
+            // refresh token data to set
+            $refreshTokenData   = array(
+                'refresh_token' => $refreshToken->getIdentifier(),
+                'access_token'  => $refreshToken->getAccessToken()->getIdentifier(),
+                'revoked'       => 0,
+                'expires_at'    => $refreshToken->getExpiryDateTime(),
+            );
+
+            $userId = $accessToken->getUserIdentifier();
+
+            // get user data to set in memeory
+            $user = $this->userRepository->getUserEntityDataByUserCredentials(
+                $userId
+            )->getAttributes();
+
+            $userData = array();
+            // get only required fields specified in constants
+            foreach (PASSPORT_USER_DATA_TO_STORE as $colName) {
+                $userData[$colName] = $user[$colName];
+            }
+
+            // set access toke data in memory
+            PassportMemory::setGeneratedAccessTokenData($accessTokenData);
+
+            // set refresh toke data in memory
+            PassportMemory::setGeneratedRefreshTokenData($refreshTokenData);
+
+            // set user data in memory
+            PassportMemory::setUserData($userId, $userData);
+        }
+
         return $responseType;
     }
 
