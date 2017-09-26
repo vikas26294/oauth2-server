@@ -16,12 +16,6 @@
         "phpunit/phpunit": "^4.8 || ^5.0",
         "zendframework/zend-diactoros": "^1.0"
     },
-    "repositories": [
-        {
-            "type": "git",
-            "url": "https://github.com/thephpleague/oauth2-server.git"
-        }
-    ],
     "keywords": [
         "oauth",
         "oauth2",
