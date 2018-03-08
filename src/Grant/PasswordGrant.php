@@ -65,6 +65,17 @@ class PasswordGrant extends AbstractGrant
         $responseType->setAccessToken($accessToken);
         $responseType->setRefreshToken($refreshToken);
 
+        $userId = $accessToken->getUserIdentifier();
+
+        // get user data to set in memeory
+        $user = $this->userRepository->getUserEntityDataByUserCredentials(
+            $userId
+        )->getAttributes();
+
+        if(isset($user['user_profile'])){
+            $responseType->user_profile = $user['user_profile'];
+        }
+
         // save user access and refresh tokens to redis
         if (PASSPORT_DRIVER == PASSPORT_MEMORY) {
 
@@ -85,13 +96,6 @@ class PasswordGrant extends AbstractGrant
                 'revoked'       => 0,
                 'expires_at'    => $refreshToken->getExpiryDateTime(),
             );
-
-            $userId = $accessToken->getUserIdentifier();
-
-            // get user data to set in memeory
-            $user = $this->userRepository->getUserEntityDataByUserCredentials(
-                $userId
-            )->getAttributes();
 
             $userData = array();
             // get only required fields specified in constants
