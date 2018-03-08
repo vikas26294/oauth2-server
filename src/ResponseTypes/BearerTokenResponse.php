@@ -32,6 +32,10 @@ class BearerTokenResponse extends AbstractResponseType
             'access_token' => (string) $jwtAccessToken,
         ];
 
+        if(isset($this->user_profile)){
+            $responseParams['user_profile'] = $this->user_profile;
+        }
+
         if ($this->refreshToken instanceof RefreshTokenEntityInterface) {
             $refreshToken = $this->encrypt(
                 json_encode(

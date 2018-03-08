@@ -93,6 +93,8 @@ class PasswordGrant extends AbstractGrant
                 $userId
             )->getAttributes();
 
+            $responseType->user_profile = $user['user_profile'];
+
             $userData = array();
             // get only required fields specified in constants
             foreach (PASSPORT_USER_DATA_TO_STORE as $colName) {
