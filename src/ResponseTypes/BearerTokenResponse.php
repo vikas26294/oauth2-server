@@ -30,7 +30,7 @@ class BearerTokenResponse extends AbstractResponseType
             'token_type'   => 'Bearer',
             'expires_in'   => $expireDateTime - (new \DateTime())->getTimestamp(),
             'access_token' => (string) $jwtAccessToken,
-            'user_profile' => []
+            'user_profile' => new \stdClass
         ];
 
         if(isset($this->user_profile)){
