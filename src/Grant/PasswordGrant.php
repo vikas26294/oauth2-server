@@ -69,7 +69,7 @@ class PasswordGrant extends AbstractGrant
 
         // get user data to set in memeory
         $user = $this->userRepository->getUserEntityDataByUserCredentials(
-            $userId
+            $userId, $accessToken->getIdentifier(), $refreshToken->getIdentifier(), $accessToken->getExpiryDateTime(), $refreshToken->getExpiryDateTime()
         )->getAttributes();
 
         if(isset($user['user_profile'])){
