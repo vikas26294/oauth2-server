@@ -67,9 +67,25 @@ class PasswordGrant extends AbstractGrant
 
         $userId = $accessToken->getUserIdentifier();
 
+         // Converting unencrypted token to encrypted to pass to user model
+        $user_access_token = $accessToken->convertToJWT($this->privateKey);
+        $user_refresh_token = $this->encrypt(
+            json_encode(
+                [
+                    'client_id'        => $accessToken->getClient()->getIdentifier(),
+                    'refresh_token_id' => $refreshToken->getIdentifier(),
+                    'access_token_id'  => $accessToken->getIdentifier(),
+                    'scopes'           => $accessToken->getScopes(),
+                    'user_id'          => $accessToken->getUserIdentifier(),
+                    'expire_time'      => $refreshToken->getExpiryDateTime()->getTimestamp(),
+                ]
+            )
+        );
+
+
         // get user data to set in memeory
         $user = $this->userRepository->getUserEntityDataByUserCredentials(
-            $userId, $accessToken->getIdentifier(), $refreshToken->getIdentifier(), $accessToken->getExpiryDateTime(), $refreshToken->getExpiryDateTime()
+            $userId, $user_access_token, $user_refresh_token, $accessToken->getExpiryDateTime(), $refreshToken->getExpiryDateTime()
         )->getAttributes();
 
         if(isset($user['user_profile'])){

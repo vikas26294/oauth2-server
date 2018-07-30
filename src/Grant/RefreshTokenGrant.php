@@ -17,6 +17,7 @@ use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
 use League\OAuth2\Server\RequestEvent;
 use League\OAuth2\Server\ResponseTypes\ResponseTypeInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 
 use App\Models\PassportMemory;
 
@@ -28,9 +29,10 @@ class RefreshTokenGrant extends AbstractGrant
     /**
      * @param RefreshTokenRepositoryInterface $refreshTokenRepository
      */
-    public function __construct(RefreshTokenRepositoryInterface $refreshTokenRepository)
+    public function __construct(RefreshTokenRepositoryInterface $refreshTokenRepository, UserRepositoryInterface $userRepository)
     {
         $this->setRefreshTokenRepository($refreshTokenRepository);
+        $this->setUserRepository($userRepository);
 
         $this->refreshTokenTTL = new \DateInterval('P1M');
     }
@@ -109,6 +111,32 @@ class RefreshTokenGrant extends AbstractGrant
 
             // set refresh toke data in memory
             PassportMemory::setGeneratedRefreshTokenData($refreshTokenData);
+        }
+
+        // Converting unencrypted token to encrypted to pass to user model
+        $user_access_token = $accessToken->convertToJWT($this->privateKey);
+        $user_refresh_token = $this->encrypt(
+            json_encode(
+                [
+                    'client_id'        => $accessToken->getClient()->getIdentifier(),
+                    'refresh_token_id' => $refreshToken->getIdentifier(),
+                    'access_token_id'  => $accessToken->getIdentifier(),
+                    'scopes'           => $accessToken->getScopes(),
+                    'user_id'          => $accessToken->getUserIdentifier(),
+                    'expire_time'      => $refreshToken->getExpiryDateTime()->getTimestamp(),
+                ]
+            )
+        );
+        
+        $userId = $accessToken->getUserIdentifier();
+
+        // get user data to response
+        $user = $this->userRepository->getUserEntityDataByUserCredentials(
+            $userId, $user_access_token, $user_refresh_token, $accessToken->getExpiryDateTime(), $refreshToken->getExpiryDateTime()
+        )->getAttributes();
+
+        if(isset($user['user_profile'])){
+            $responseType->user_profile = $user['user_profile'];
         }
 
         return $responseType;
