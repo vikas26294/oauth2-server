@@ -113,20 +113,13 @@ class PasswordGrant extends AbstractGrant
                 'expires_at'    => $refreshToken->getExpiryDateTime(),
             );
 
-            $userData = array();
-            // get only required fields specified in constants
-            foreach (PASSPORT_USER_DATA_TO_STORE as $colName) {
-                $userData[$colName] = $user[$colName];
-            }
-
             // set access toke data in memory
             PassportMemory::setGeneratedAccessTokenData($accessTokenData);
 
             // set refresh toke data in memory
             PassportMemory::setGeneratedRefreshTokenData($refreshTokenData);
-
             // set user data in memory
-            PassportMemory::setUserData($userId, $userData);
+            PassportMemory::setUserData($userId, $user);
         }
 
         return $responseType;
