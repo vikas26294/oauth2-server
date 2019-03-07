@@ -83,12 +83,12 @@ class PasswordGrant extends AbstractGrant
         );
 
 
-        // get user data to set in memeory
+        // get user model object to set in memeory
         $user = $this->userRepository->getUserEntityDataByUserCredentials(
             $userId, $user_access_token, $user_refresh_token, $accessToken->getExpiryDateTime(), $refreshToken->getExpiryDateTime()
-        )->getAttributes();
+        );
 
-        if(isset($user['user_profile'])){
+        if(property_exists($user, 'user_profile')){
             $responseType->user_profile = $user['user_profile'];
         }
 
