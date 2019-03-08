@@ -90,6 +90,7 @@ class PasswordGrant extends AbstractGrant
 
         if(property_exists($user, 'user_profile')){
             $responseType->user_profile = $user['user_profile'];
+            unset($user['user_profile']);
         }
 
         // save user access and refresh tokens to redis
