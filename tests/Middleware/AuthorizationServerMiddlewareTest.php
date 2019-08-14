@@ -2,6 +2,7 @@
 
 namespace LeagueTests\Middleware;
 
+use DateInterval;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\Exception\OAuthServerException;
 use League\OAuth2\Server\Grant\ClientCredentialsGrant;
@@ -11,18 +12,27 @@ use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use League\OAuth2\Server\Repositories\ScopeRepositoryInterface;
 use LeagueTests\Stubs\AccessTokenEntity;
 use LeagueTests\Stubs\ClientEntity;
+use LeagueTests\Stubs\ScopeEntity;
 use LeagueTests\Stubs\StubResponseType;
+use PHPUnit\Framework\TestCase;
 use Zend\Diactoros\Response;
 use Zend\Diactoros\ServerRequestFactory;
 
-class AuthorizationServerMiddlewareTest extends \PHPUnit_Framework_TestCase
+class AuthorizationServerMiddlewareTest extends TestCase
 {
+    const DEFAULT_SCOPE = 'basic';
+
     public function testValidResponse()
     {
-        $clientRepository = $this->getMockBuilder(ClientRepositoryInterface::class)->getMock();
-        $clientRepository->method('getClientEntity')->willReturn(new ClientEntity());
+        $client = new ClientEntity();
+        $client->setConfidential();
 
+        $clientRepository = $this->getMockBuilder(ClientRepositoryInterface::class)->getMock();
+        $clientRepository->method('getClientEntity')->willReturn($client);
+
+        $scopeEntity = new ScopeEntity;
         $scopeRepositoryMock = $this->getMockBuilder(ScopeRepositoryInterface::class)->getMock();
+        $scopeRepositoryMock->method('getScopeEntityByIdentifier')->willReturn($scopeEntity);
         $scopeRepositoryMock->method('finalizeScopes')->willReturnArgument(0);
 
         $accessRepositoryMock = $this->getMockBuilder(AccessTokenRepositoryInterface::class)->getMock();
@@ -37,6 +47,7 @@ class AuthorizationServerMiddlewareTest extends \PHPUnit_Framework_TestCase
             new StubResponseType()
         );
 
+        $server->setDefaultScope(self::DEFAULT_SCOPE);
         $server->enableGrantType(new ClientCredentialsGrant());
 
         $_POST['grant_type'] = 'client_credentials';
@@ -59,7 +70,7 @@ class AuthorizationServerMiddlewareTest extends \PHPUnit_Framework_TestCase
     public function testOAuthErrorResponse()
     {
         $clientRepository = $this->getMockBuilder(ClientRepositoryInterface::class)->getMock();
-        $clientRepository->method('getClientEntity')->willReturn(null);
+        $clientRepository->method('validateClient')->willReturn(false);
 
         $server = new AuthorizationServer(
             $clientRepository,
@@ -70,7 +81,7 @@ class AuthorizationServerMiddlewareTest extends \PHPUnit_Framework_TestCase
             new StubResponseType()
         );
 
-        $server->enableGrantType(new ClientCredentialsGrant(), new \DateInterval('PT1M'));
+        $server->enableGrantType(new ClientCredentialsGrant(), new DateInterval('PT1M'));
 
         $_POST['grant_type'] = 'client_credentials';
         $_POST['client_id'] = 'foo';
@@ -97,7 +108,7 @@ class AuthorizationServerMiddlewareTest extends \PHPUnit_Framework_TestCase
         $response = $exception->generateHttpResponse(new Response());
 
         $this->assertEquals(302, $response->getStatusCode());
-        $this->assertEquals('http://foo/bar?error=invalid_scope&message=The+requested+scope+is+invalid%2C+unknown%2C+or+malformed&hint=Check+the+%60test%60+scope',
+        $this->assertEquals('http://foo/bar?error=invalid_scope&error_description=The+requested+scope+is+invalid%2C+unknown%2C+or+malformed&hint=Check+the+%60test%60+scope&message=The+requested+scope+is+invalid%2C+unknown%2C+or+malformed',
             $response->getHeader('location')[0]);
     }
 
@@ -107,7 +118,7 @@ class AuthorizationServerMiddlewareTest extends \PHPUnit_Framework_TestCase
         $response = $exception->generateHttpResponse(new Response(), true);
 
         $this->assertEquals(302, $response->getStatusCode());
-        $this->assertEquals('http://foo/bar#error=invalid_scope&message=The+requested+scope+is+invalid%2C+unknown%2C+or+malformed&hint=Check+the+%60test%60+scope',
+        $this->assertEquals('http://foo/bar#error=invalid_scope&error_description=The+requested+scope+is+invalid%2C+unknown%2C+or+malformed&hint=Check+the+%60test%60+scope&message=The+requested+scope+is+invalid%2C+unknown%2C+or+malformed',
             $response->getHeader('location')[0]);
     }
 }

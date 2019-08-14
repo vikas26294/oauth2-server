@@ -2,6 +2,8 @@
 
 namespace LeagueTests\ResponseTypes;
 
+use DateInterval;
+use DateTimeImmutable;
 use League\OAuth2\Server\AuthorizationValidators\BearerTokenValidator;
 use League\OAuth2\Server\CryptKey;
 use League\OAuth2\Server\Exception\OAuthServerException;
@@ -11,17 +13,16 @@ use LeagueTests\Stubs\AccessTokenEntity;
 use LeagueTests\Stubs\ClientEntity;
 use LeagueTests\Stubs\RefreshTokenEntity;
 use LeagueTests\Stubs\ScopeEntity;
+use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Zend\Diactoros\Response;
 use Zend\Diactoros\ServerRequest;
 
-class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
+class BearerResponseTypeTest extends TestCase
 {
     public function testGenerateHttpResponse()
     {
-        $accessTokenRepositoryMock = $this->getMockBuilder(AccessTokenRepositoryInterface::class)->getMock();
-
-        $responseType = new BearerTokenResponse($accessTokenRepositoryMock);
+        $responseType = new BearerTokenResponse();
         $responseType->setPrivateKey(new CryptKey('file://' . __DIR__ . '/../Stubs/private.key'));
         $responseType->setEncryptionKey(base64_encode(random_bytes(36)));
 
@@ -33,21 +34,22 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
 
         $accessToken = new AccessTokenEntity();
         $accessToken->setIdentifier('abcdef');
-        $accessToken->setExpiryDateTime((new \DateTime())->add(new \DateInterval('PT1H')));
+        $accessToken->setExpiryDateTime((new DateTimeImmutable())->add(new DateInterval('PT1H')));
         $accessToken->setClient($client);
         $accessToken->addScope($scope);
+        $accessToken->setPrivateKey(new CryptKey('file://' . __DIR__ . '/../Stubs/private.key'));
 
         $refreshToken = new RefreshTokenEntity();
         $refreshToken->setIdentifier('abcdef');
         $refreshToken->setAccessToken($accessToken);
-        $refreshToken->setExpiryDateTime((new \DateTime())->add(new \DateInterval('PT1H')));
+        $refreshToken->setExpiryDateTime((new DateTimeImmutable())->add(new DateInterval('PT1H')));
 
         $responseType->setAccessToken($accessToken);
         $responseType->setRefreshToken($refreshToken);
 
         $response = $responseType->generateHttpResponse(new Response());
 
-        $this->assertTrue($response instanceof ResponseInterface);
+        $this->assertInstanceOf(ResponseInterface::class, $response);
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals('no-cache', $response->getHeader('pragma')[0]);
         $this->assertEquals('no-store', $response->getHeader('cache-control')[0]);
@@ -56,16 +58,14 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
         $response->getBody()->rewind();
         $json = json_decode($response->getBody()->getContents());
         $this->assertEquals('Bearer', $json->token_type);
-        $this->assertTrue(isset($json->expires_in));
-        $this->assertTrue(isset($json->access_token));
-        $this->assertTrue(isset($json->refresh_token));
+        $this->assertObjectHasAttribute('expires_in', $json);
+        $this->assertObjectHasAttribute('access_token', $json);
+        $this->assertObjectHasAttribute('refresh_token', $json);
     }
 
     public function testGenerateHttpResponseWithExtraParams()
     {
-        $accessTokenRepositoryMock = $this->getMockBuilder(AccessTokenRepositoryInterface::class)->getMock();
-
-        $responseType = new BearerTokenResponseWithParams($accessTokenRepositoryMock);
+        $responseType = new BearerTokenResponseWithParams();
         $responseType->setPrivateKey(new CryptKey('file://' . __DIR__ . '/../Stubs/private.key'));
         $responseType->setEncryptionKey(base64_encode(random_bytes(36)));
 
@@ -77,21 +77,22 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
 
         $accessToken = new AccessTokenEntity();
         $accessToken->setIdentifier('abcdef');
-        $accessToken->setExpiryDateTime((new \DateTime())->add(new \DateInterval('PT1H')));
+        $accessToken->setExpiryDateTime((new DateTimeImmutable())->add(new DateInterval('PT1H')));
         $accessToken->setClient($client);
         $accessToken->addScope($scope);
+        $accessToken->setPrivateKey(new CryptKey('file://' . __DIR__ . '/../Stubs/private.key'));
 
         $refreshToken = new RefreshTokenEntity();
         $refreshToken->setIdentifier('abcdef');
         $refreshToken->setAccessToken($accessToken);
-        $refreshToken->setExpiryDateTime((new \DateTime())->add(new \DateInterval('PT1H')));
+        $refreshToken->setExpiryDateTime((new DateTimeImmutable())->add(new DateInterval('PT1H')));
 
         $responseType->setAccessToken($accessToken);
         $responseType->setRefreshToken($refreshToken);
 
         $response = $responseType->generateHttpResponse(new Response());
 
-        $this->assertTrue($response instanceof ResponseInterface);
+        $this->assertInstanceOf(ResponseInterface::class, $response);
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals('no-cache', $response->getHeader('pragma')[0]);
         $this->assertEquals('no-store', $response->getHeader('cache-control')[0]);
@@ -100,20 +101,17 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
         $response->getBody()->rewind();
         $json = json_decode($response->getBody()->getContents());
         $this->assertEquals('Bearer', $json->token_type);
-        $this->assertTrue(isset($json->expires_in));
-        $this->assertTrue(isset($json->access_token));
-        $this->assertTrue(isset($json->refresh_token));
+        $this->assertObjectHasAttribute('expires_in', $json);
+        $this->assertObjectHasAttribute('access_token', $json);
+        $this->assertObjectHasAttribute('refresh_token', $json);
 
-        $this->assertTrue(isset($json->foo));
+        $this->assertObjectHasAttribute('foo', $json);
         $this->assertEquals('bar', $json->foo);
     }
 
     public function testDetermineAccessTokenInHeaderValidToken()
     {
-        $accessTokenRepositoryMock = $this->getMockBuilder(AccessTokenRepositoryInterface::class)->getMock();
-        $accessTokenRepositoryMock->method('isAccessTokenRevoked')->willReturn(false);
-
-        $responseType = new BearerTokenResponse($accessTokenRepositoryMock);
+        $responseType = new BearerTokenResponse();
         $responseType->setPrivateKey(new CryptKey('file://' . __DIR__ . '/../Stubs/private.key'));
         $responseType->setEncryptionKey(base64_encode(random_bytes(36)));
 
@@ -123,13 +121,14 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
         $accessToken = new AccessTokenEntity();
         $accessToken->setIdentifier('abcdef');
         $accessToken->setUserIdentifier(123);
-        $accessToken->setExpiryDateTime((new \DateTime())->add(new \DateInterval('PT1H')));
+        $accessToken->setExpiryDateTime((new DateTimeImmutable())->add(new DateInterval('PT1H')));
         $accessToken->setClient($client);
+        $accessToken->setPrivateKey(new CryptKey('file://' . __DIR__ . '/../Stubs/private.key'));
 
         $refreshToken = new RefreshTokenEntity();
         $refreshToken->setIdentifier('abcdef');
         $refreshToken->setAccessToken($accessToken);
-        $refreshToken->setExpiryDateTime((new \DateTime())->add(new \DateInterval('PT1H')));
+        $refreshToken->setExpiryDateTime((new DateTimeImmutable())->add(new DateInterval('PT1H')));
 
         $responseType->setAccessToken($accessToken);
         $responseType->setRefreshToken($refreshToken);
@@ -143,8 +142,7 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
         $authorizationValidator = new BearerTokenValidator($accessTokenRepositoryMock);
         $authorizationValidator->setPublicKey(new CryptKey('file://' . __DIR__ . '/../Stubs/public.key'));
 
-        $request = new ServerRequest();
-        $request = $request->withHeader('authorization', sprintf('Bearer %s', $json->access_token));
+        $request = (new ServerRequest())->withHeader('authorization', sprintf('Bearer %s', $json->access_token));
 
         $request = $authorizationValidator->validateAuthorization($request);
 
@@ -157,9 +155,8 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
     public function testDetermineAccessTokenInHeaderInvalidJWT()
     {
         $accessTokenRepositoryMock = $this->getMockBuilder(AccessTokenRepositoryInterface::class)->getMock();
-        $accessTokenRepositoryMock->method('isAccessTokenRevoked')->willReturn(false);
 
-        $responseType = new BearerTokenResponse($accessTokenRepositoryMock);
+        $responseType = new BearerTokenResponse();
         $responseType->setPrivateKey(new CryptKey('file://' . __DIR__ . '/../Stubs/private.key'));
         $responseType->setEncryptionKey(base64_encode(random_bytes(36)));
 
@@ -169,13 +166,14 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
         $accessToken = new AccessTokenEntity();
         $accessToken->setIdentifier('abcdef');
         $accessToken->setUserIdentifier(123);
-        $accessToken->setExpiryDateTime((new \DateTime())->add(new \DateInterval('PT1H')));
+        $accessToken->setExpiryDateTime((new DateTimeImmutable())->add(new DateInterval('PT1H')));
         $accessToken->setClient($client);
+        $accessToken->setPrivateKey(new CryptKey('file://' . __DIR__ . '/../Stubs/private.key'));
 
         $refreshToken = new RefreshTokenEntity();
         $refreshToken->setIdentifier('abcdef');
         $refreshToken->setAccessToken($accessToken);
-        $refreshToken->setExpiryDateTime((new \DateTime())->add(new \DateInterval('PT1H')));
+        $refreshToken->setExpiryDateTime((new DateTimeImmutable())->add(new DateInterval('PT1H')));
 
         $responseType->setAccessToken($accessToken);
         $responseType->setRefreshToken($refreshToken);
@@ -186,8 +184,7 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
         $authorizationValidator = new BearerTokenValidator($accessTokenRepositoryMock);
         $authorizationValidator->setPublicKey(new CryptKey('file://' . __DIR__ . '/../Stubs/public.key'));
 
-        $request = new ServerRequest();
-        $request = $request->withHeader('authorization', sprintf('Bearer %s', $json->access_token . 'foo'));
+        $request = (new ServerRequest())->withHeader('authorization', sprintf('Bearer %s', $json->access_token . 'foo'));
 
         try {
             $authorizationValidator->validateAuthorization($request);
@@ -211,13 +208,14 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
         $accessToken = new AccessTokenEntity();
         $accessToken->setIdentifier('abcdef');
         $accessToken->setUserIdentifier(123);
-        $accessToken->setExpiryDateTime((new \DateTime())->add(new \DateInterval('PT1H')));
+        $accessToken->setExpiryDateTime((new DateTimeImmutable())->add(new DateInterval('PT1H')));
         $accessToken->setClient($client);
+        $accessToken->setPrivateKey(new CryptKey('file://' . __DIR__ . '/../Stubs/private.key'));
 
         $refreshToken = new RefreshTokenEntity();
         $refreshToken->setIdentifier('abcdef');
         $refreshToken->setAccessToken($accessToken);
-        $refreshToken->setExpiryDateTime((new \DateTime())->add(new \DateInterval('PT1H')));
+        $refreshToken->setExpiryDateTime((new DateTimeImmutable())->add(new DateInterval('PT1H')));
 
         $responseType->setAccessToken($accessToken);
         $responseType->setRefreshToken($refreshToken);
@@ -231,8 +229,7 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
         $authorizationValidator = new BearerTokenValidator($accessTokenRepositoryMock);
         $authorizationValidator->setPublicKey(new CryptKey('file://' . __DIR__ . '/../Stubs/public.key'));
 
-        $request = new ServerRequest();
-        $request = $request->withHeader('authorization', sprintf('Bearer %s', $json->access_token));
+        $request = (new ServerRequest())->withHeader('authorization', sprintf('Bearer %s', $json->access_token));
 
         try {
             $authorizationValidator->validateAuthorization($request);
@@ -246,9 +243,7 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
 
     public function testDetermineAccessTokenInHeaderInvalidToken()
     {
-        $accessTokenRepositoryMock = $this->getMockBuilder(AccessTokenRepositoryInterface::class)->getMock();
-
-        $responseType = new BearerTokenResponse($accessTokenRepositoryMock);
+        $responseType = new BearerTokenResponse();
         $responseType->setPrivateKey(new CryptKey('file://' . __DIR__ . '/../Stubs/private.key'));
         $responseType->setEncryptionKey(base64_encode(random_bytes(36)));
 
@@ -257,8 +252,7 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
         $authorizationValidator = new BearerTokenValidator($accessTokenRepositoryMock);
         $authorizationValidator->setPublicKey(new CryptKey('file://' . __DIR__ . '/../Stubs/public.key'));
 
-        $request = new ServerRequest();
-        $request = $request->withHeader('authorization', 'Bearer blah');
+        $request = (new ServerRequest())->withHeader('authorization', 'Bearer blah');
 
         try {
             $authorizationValidator->validateAuthorization($request);
@@ -272,9 +266,7 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
 
     public function testDetermineMissingBearerInHeader()
     {
-        $accessTokenRepositoryMock = $this->getMockBuilder(AccessTokenRepositoryInterface::class)->getMock();
-
-        $responseType = new BearerTokenResponse($accessTokenRepositoryMock);
+        $responseType = new BearerTokenResponse();
         $responseType->setPrivateKey(new CryptKey('file://' . __DIR__ . '/../Stubs/private.key'));
         $responseType->setEncryptionKey(base64_encode(random_bytes(36)));
 
@@ -283,8 +275,7 @@ class BearerResponseTypeTest extends \PHPUnit_Framework_TestCase
         $authorizationValidator = new BearerTokenValidator($accessTokenRepositoryMock);
         $authorizationValidator->setPublicKey(new CryptKey('file://' . __DIR__ . '/../Stubs/public.key'));
 
-        $request = new ServerRequest();
-        $request = $request->withHeader('authorization', 'Bearer blah.blah.blah');
+        $request = (new ServerRequest())->withHeader('authorization', 'Bearer blah.blah.blah');
 
         try {
             $authorizationValidator->validateAuthorization($request);
