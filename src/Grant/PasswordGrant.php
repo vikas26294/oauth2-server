@@ -21,6 +21,8 @@ use League\OAuth2\Server\RequestEvent;
 use League\OAuth2\Server\ResponseTypes\ResponseTypeInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
+use App\Models\PassportMemory;
+
 /**
  * Password grant class.
  */
@@ -67,6 +69,64 @@ class PasswordGrant extends AbstractGrant
         if ($refreshToken !== null) {
             $this->getEmitter()->emit(new RequestEvent(RequestEvent::REFRESH_TOKEN_ISSUED, $request));
             $responseType->setRefreshToken($refreshToken);
+        }
+
+        $userId = $accessToken->getUserIdentifier();
+
+         // Converting unencrypted token to encrypted to pass to user model
+        $user_access_token = $accessToken->convertToJWT($this->privateKey);
+        $user_refresh_token = $this->encrypt(
+            json_encode(
+                [
+                    'client_id'        => $accessToken->getClient()->getIdentifier(),
+                    'refresh_token_id' => $refreshToken->getIdentifier(),
+                    'access_token_id'  => $accessToken->getIdentifier(),
+                    'scopes'           => $accessToken->getScopes(),
+                    'user_id'          => $accessToken->getUserIdentifier(),
+                    'expire_time'      => $refreshToken->getExpiryDateTime()->getTimestamp(),
+                ]
+            )
+        );
+
+
+        // get user model object to set in memeory
+        $user = $this->userRepository->getUserEntityDataByUserCredentials(
+            $userId, $user_access_token, $user_refresh_token, $accessToken->getExpiryDateTime(), $refreshToken->getExpiryDateTime()
+        );
+
+        if(isset($user->user_profile)){
+            $responseType->user_profile = $user->user_profile;
+           unset($user->user_profile);
+        }
+
+        // save user access and refresh tokens to redis
+        if (PASSPORT_DRIVER == PASSPORT_MEMORY) {
+
+            // access token data to set
+            $accessTokenData    = array(
+                'access_token'  => $accessToken->getIdentifier(),
+                'client_id'     => $accessToken->getClient()->getIdentifier(),
+                'user_id'       => $accessToken->getUserIdentifier(),
+                'scopes'        => $accessToken->getScopes(),
+                'revoked'       => 0,
+                'expires_at'    => $accessToken->getExpiryDateTime(),
+            );
+
+            // refresh token data to set
+            $refreshTokenData   = array(
+                'refresh_token' => $refreshToken->getIdentifier(),
+                'access_token'  => $refreshToken->getAccessToken()->getIdentifier(),
+                'revoked'       => 0,
+                'expires_at'    => $refreshToken->getExpiryDateTime(),
+            );
+
+            // set access toke data in memory
+            PassportMemory::setGeneratedAccessTokenData($accessTokenData);
+
+            // set refresh toke data in memory
+            PassportMemory::setGeneratedRefreshTokenData($refreshTokenData);
+            // set user data in memory
+            PassportMemory::setUserData($userId, $user);
         }
 
         return $responseType;

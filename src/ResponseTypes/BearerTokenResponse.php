@@ -31,7 +31,12 @@ class BearerTokenResponse extends AbstractResponseType
             'token_type'   => 'Bearer',
             'expires_in'   => $expireDateTime - (new DateTime())->getTimestamp(),
             'access_token' => (string) $jwtAccessToken,
+            'user_profile' =>  new \stdClass
         ];
+
+        if(isset($this->user_profile)){
+            $responseParams['user_profile'] = $this->user_profile;
+        }
 
         if ($this->refreshToken instanceof RefreshTokenEntityInterface) {
             $refreshToken = $this->encrypt(
